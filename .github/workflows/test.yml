@@ -1,1 +1,28 @@
-
+name: test-fetch
+on:
+  workflow_dispatch:
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch channel page
+        run: |
+          curl -sS -L -A "Mozilla/5.0" -o page.html -w "HTTP %{http_code}, bytes %{size_download}\n" https://t.me/s/batumi_svoi_rieltor
+      - name: Analyze
+        run: |
+          python3 - <<'EOF'
+          import re, html
+          t = open("page.html", encoding="utf-8").read()
+          parts = t.split("tgme_widget_message_wrap")[1:]
+          print("posts on page:", len(parts))
+          for p in parts:
+              m = re.search(r'data-post="[^"]+/(\d+)"', p)
+              pid = m.group(1) if m else "?"
+              photos = len(re.findall(r'tgme_widget_message_photo_wrap', p))
+              tm = re.search(r'tgme_widget_message_text[^>]*>(.*?)</div>', p, re.S)
+              txt = ""
+              if tm:
+                  txt = html.unescape(re.sub(r"<br\s*/?>", " | ", tm.group(1)))
+                  txt = re.sub(r"<[^>]+>", "", txt)[:120]
+              print(pid, "photos:", photos, "|", txt)
+          EOF
